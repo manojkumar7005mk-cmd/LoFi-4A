@@ -12,7 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lofi.core.chat.ChatMessage
 import com.lofi.core.chat.ChatViewModel
@@ -21,13 +23,24 @@ import com.lofi.core.models.ModelState
 private val Bg = Color(0xFF15131A)
 private val Surface1 = Color(0xFF211E29)
 private val Accent = Color(0xFFB69CFF)
+private val TextMain = Color(0xFFF4F0FA)
+private val TextSoft = Color(0xFFCFC9DC)
 
 @Composable
 fun LoFiTheme(content: @Composable () -> Unit) {
+    val base = Typography()
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Accent, background = Bg, surface = Surface1,
-            onSurface = Color(0xFFE8E4F0), onBackground = Color(0xFFE8E4F0),
+            onSurface = TextMain, onBackground = TextMain,
+        ),
+        typography = base.copy(
+            titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.sp),
+            bodyLarge = base.bodyLarge.copy(
+                fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 25.sp, letterSpacing = 0.sp,
+            ),
+            labelLarge = base.labelLarge.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.sp),
+            labelMedium = base.labelMedium.copy(fontWeight = FontWeight.Normal, letterSpacing = 0.sp),
         ),
         content = content,
     )
@@ -41,25 +54,32 @@ fun ChatScreen(vm: ChatViewModel) {
     val online by vm.online.collectAsStateWithLifecycle()
     val ready = modelState is ModelState.Loaded
 
-    Column(
-        Modifier.fillMaxSize().background(Bg).statusBarsPadding().navigationBarsPadding().imePadding()
+    // Surface sets the default text color. Without it, text falls back to black on a dark background.
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Bg,
+        contentColor = TextMain,
     ) {
-        TopBar(online)
-        ModelBanner(modelState, vm)
-
-        val listState = rememberLazyListState()
-        LaunchedEffect(messages.lastOrNull()?.text?.length, messages.size) {
-            if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
-        }
-        LazyColumn(
-            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()
         ) {
-            items(messages, key = { it.id }) { Bubble(it, showSpinner = generating && it == messages.last()) }
-        }
+            TopBar(online)
+            ModelBanner(modelState, vm)
 
-        InputBar(ready = ready, generating = generating, onSend = vm::send, onStop = vm::stop)
+            val listState = rememberLazyListState()
+            LaunchedEffect(messages.lastOrNull()?.text?.length, messages.size) {
+                if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
+            }
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(messages, key = { it.id }) { Bubble(it, showSpinner = generating && it == messages.last()) }
+            }
+
+            InputBar(ready = ready, generating = generating, onSend = vm::send, onStop = vm::stop)
+        }
     }
 }
 
@@ -69,13 +89,19 @@ private fun TopBar(online: Boolean) {
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("LoFi-4A", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        Text(
+            "LoFi-4A",
+            style = MaterialTheme.typography.titleLarge,
+            color = TextMain,
+            modifier = Modifier.weight(1f),
+        )
         // Inference is always offline; this only shows whether a network exists (for downloads).
         Box(Modifier.size(8.dp).background(if (online) Color(0xFFE0B040) else Color(0xFF5BD18B), CircleShape))
         Spacer(Modifier.width(6.dp))
         Text(
-            if (online) "Network available · inference stays on-device" else "Offline",
+            if (online) "Network available · on-device AI" else "Offline",
             style = MaterialTheme.typography.labelMedium,
+            color = TextSoft,
         )
     }
 }
@@ -86,7 +112,7 @@ private fun ModelBanner(state: ModelState, vm: ChatViewModel) {
         ModelState.Loaded -> Unit
         else -> Card(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Surface1),
+            colors = CardDefaults.cardColors(containerColor = Surface1, contentColor = TextMain),
         ) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(vm.modelInfo, style = MaterialTheme.typography.labelLarge)
@@ -131,16 +157,19 @@ private fun ModelBanner(state: ModelState, vm: ChatViewModel) {
 private fun Bubble(m: ChatMessage, showSpinner: Boolean) {
     val align = if (m.fromUser) Alignment.End else Alignment.Start
     val color = when {
-        m.isError -> Color(0xFF4A2326)
-        m.fromUser -> Color(0xFF3A3152)
-        else -> Surface1
+        m.isError -> Color(0xFF5A2A2E)
+        m.fromUser -> Color(0xFF4A3E6A)
+        else -> Color(0xFF2B2736)
     }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = align) {
         Box(
             Modifier.widthIn(max = 320.dp).background(color, RoundedCornerShape(16.dp)).padding(12.dp)
         ) {
-            if (m.text.isEmpty() && showSpinner) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-            else Text(m.text)
+            if (m.text.isEmpty() && showSpinner) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Accent)
+            } else {
+                Text(m.text, color = TextMain)
+            }
         }
     }
 }
@@ -159,7 +188,7 @@ private fun InputBar(ready: Boolean, generating: Boolean, onSend: (String) -> Un
             value = text,
             onValueChange = { text = it },
             modifier = Modifier.weight(1f),
-            placeholder = { Text(if (ready) "Message LoFi-4A" else "Load the model to chat") },
+            placeholder = { Text(if (ready) "Message LoFi-4A" else "Load the model to chat", color = TextSoft) },
             enabled = ready && !generating,
             maxLines = 4,
         )
