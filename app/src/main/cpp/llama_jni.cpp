@@ -94,7 +94,7 @@ Java_com_lofi_core_llm_LlamaNative_nativeLoad(JNIEnv *env, jobject, jstring jpat
 
     llama_model_params mp = llama_model_default_params();
     mp.n_gpu_layers = 0;   // CPU only
-    mp.use_mmap = true;    // weights are paged from disk: lowest resident RAM
+    //mp.use_mmap = true;    // weights are paged from disk: lowest resident RAM
 
     llama_model *model = llama_model_load_from_file(path_str.c_str(), mp);
     if (!model) {
