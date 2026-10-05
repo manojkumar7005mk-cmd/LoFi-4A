@@ -28,15 +28,13 @@ object ModelManifest {
     /** Downloads are only allowed from these hosts (https only). */
     val allowedHosts = setOf("huggingface.co")
 
-    // TODO(you): confirm this URL, then fill sha256 + sizeBytes. Left blank on purpose:
-    // inventing a hash would make the verification meaningless.
     val GEMMA = ModelSpec(
         id = "gemma-3-1b-it",
         displayName = "Gemma 3 1B Instruct (Q4_K_M)",
         fileName = "gemma-3-1b-it-Q4_K_M.gguf",
         url = "https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf",
-        sha256 = "",
-        sizeBytes = 0L,
+        sha256 = "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135",
+        sizeBytes = 806058240L,
         version = "1",
     )
 
