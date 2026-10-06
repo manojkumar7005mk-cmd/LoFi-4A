@@ -6,10 +6,6 @@ package com.lofi.core.models
  *
  * A spec is only downloadable once [ModelSpec.isConfigured] is true, i.e. it has a real
  * SHA-256 and byte size. The app never downloads an unverifiable file.
- *
- * To fill in a spec: download the file once yourself, then run
- *     sha256sum gemma-3-1b-it-Q4_K_M.gguf ; stat -c %s gemma-3-1b-it-Q4_K_M.gguf
- * and paste both values below. Verify the URL points at the exact file you hashed.
  */
 data class ModelSpec(
     val id: String,
@@ -28,6 +24,7 @@ object ModelManifest {
     /** Downloads are only allowed from these hosts (https only). */
     val allowedHosts = setOf("huggingface.co")
 
+    // Chat model (text). Already working.
     val GEMMA = ModelSpec(
         id = "gemma-3-1b-it",
         displayName = "Gemma 3 1B Instruct (Q4_K_M)",
@@ -38,6 +35,41 @@ object ModelManifest {
         version = "1",
     )
 
-    // Phase 3 will add LFM2-VL 450M and its mmproj here. Phase 4 adds Whisper Base.
+    // Image analysis (Phase 3): the vision model + its projector. Both files are needed together.
+    val LFM_VL = ModelSpec(
+        id = "lfm2.5-vl-450m",
+        displayName = "LFM2.5-VL 450M (Q4_K_M)",
+        fileName = "LFM2.5-VL-450M-Q4_K_M.gguf",
+        url = "https://huggingface.co/LiquidAI/LFM2.5-VL-450M-GGUF/resolve/main/LFM2.5-VL-450M-Q4_K_M.gguf",
+        sha256 = "1093f1331319199bbcacdbd7ecc9aa6e5678db6b55073948d0f508be90c8ab68",
+        sizeBytes = 229313568L,
+        version = "1",
+    )
+
+    val LFM_VL_MMPROJ = ModelSpec(
+        id = "lfm2.5-vl-450m-mmproj",
+        displayName = "LFM2.5-VL 450M vision projector (Q8_0)",
+        fileName = "mmproj-LFM2.5-VL-450m-Q8_0.gguf",
+        url = "https://huggingface.co/LiquidAI/LFM2.5-VL-450M-GGUF/resolve/main/mmproj-LFM2.5-VL-450m-Q8_0.gguf",
+        sha256 = "ebfc428baa37efad8bae93864f914b2634a09009f91ad59f974fe1a1565d8561",
+        sizeBytes = 102815168L,
+        version = "1",
+    )
+
+    // Voice to text (Phase 4). Pinned to an exact commit so the file can never change under us.
+    val WHISPER_BASE = ModelSpec(
+        id = "whisper-base",
+        displayName = "Whisper Base (multilingual)",
+        fileName = "ggml-base.bin",
+        url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/98aa99a0a9db05ae2342309f5096248665f7cba3/ggml-base.bin",
+        sha256 = "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
+        sizeBytes = 147951465L,
+        version = "1",
+    )
+
+    // The app downloads only these today.
     val all: List<ModelSpec> = listOf(GEMMA)
+
+    // Ready for Phase 3 and 4. Not downloaded yet, because the code to use them isn't wired in.
+    val upcoming: List<ModelSpec> = listOf(LFM_VL, LFM_VL_MMPROJ, WHISPER_BASE)
 }
