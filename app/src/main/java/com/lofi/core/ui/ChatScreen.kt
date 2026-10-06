@@ -1,5 +1,9 @@
 package com.lofi.core.ui
 
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -25,6 +31,9 @@ private val Surface1 = Color(0xFF211E29)
 private val Accent = Color(0xFFB69CFF)
 private val TextMain = Color(0xFFF4F0FA)
 private val TextSoft = Color(0xFFCFC9DC)
+
+/** A file the user picked with the "+" button. Processing (Whisper etc.) is wired in a later step. */
+data class Attachment(val uri: Uri, val name: String, val isVideo: Boolean)
 
 @Composable
 fun LoFiTheme(content: @Composable () -> Unit) {
@@ -53,6 +62,7 @@ fun ChatScreen(vm: ChatViewModel) {
     val modelState by vm.models.state.collectAsStateWithLifecycle()
     val online by vm.online.collectAsStateWithLifecycle()
     val ready = modelState is ModelState.Loaded
+    var attachment by remember { mutableStateOf<Attachment?>(null) }
 
     // Surface sets the default text color. Without it, text falls back to black on a dark background.
     Surface(
@@ -78,7 +88,15 @@ fun ChatScreen(vm: ChatViewModel) {
                 items(messages, key = { it.id }) { Bubble(it, showSpinner = generating && it == messages.last()) }
             }
 
-            InputBar(ready = ready, generating = generating, onSend = vm::send, onStop = vm::stop)
+            InputBar(
+                ready = ready,
+                generating = generating,
+                attachment = attachment,
+                onAttach = { attachment = it },
+                onClearAttachment = { attachment = null },
+                onSend = vm::send,
+                onStop = vm::stop,
+            )
         }
     }
 }
@@ -175,27 +193,72 @@ private fun Bubble(m: ChatMessage, showSpinner: Boolean) {
 }
 
 @Composable
-private fun InputBar(ready: Boolean, generating: Boolean, onSend: (String) -> Unit, onStop: () -> Unit) {
+private fun InputBar(
+    ready: Boolean,
+    generating: Boolean,
+    attachment: Attachment?,
+    onAttach: (Attachment) -> Unit,
+    onClearAttachment: () -> Unit,
+    onSend: (String) -> Unit,
+    onStop: () -> Unit,
+) {
     var text by remember { mutableStateOf("") }
-    Row(
-        Modifier.fillMaxWidth().padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Phase 3 (LFM2-VL + mmproj). Disabled on purpose: no fake image support.
-        IconButton(onClick = {}, enabled = false) { Text("🖼", color = Color.Gray) }
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            modifier = Modifier.weight(1f),
-            placeholder = { Text(if (ready) "Message LoFi-4A" else "Load the model to chat", color = TextSoft) },
-            enabled = ready && !generating,
-            maxLines = 4,
-        )
-        if (generating) {
-            Button(onClick = onStop) { Text("Stop") }
-        } else {
-            Button(onClick = { onSend(text); text = "" }, enabled = ready && text.isNotBlank()) { Text("Send") }
+    val context = LocalContext.current
+
+    // System file picker: no storage permission needed.
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            val type = context.contentResolver.getType(uri).orEmpty()
+            var name = "file"
+            context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (i >= 0 && c.moveToFirst()) name = c.getString(i) ?: name
+            }
+            onAttach(Attachment(uri, name, type.startsWith("video/")))
+        }
+    }
+
+    Column(Modifier.fillMaxWidth()) {
+        if (attachment != null) {
+            Row(
+                Modifier
+                    .padding(start = 14.dp, end = 14.dp, top = 6.dp)
+                    .background(Color(0xFF2B2736), RoundedCornerShape(12.dp))
+                    .padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    (if (attachment.isVideo) "🎬 " else "🎵 ") + attachment.name,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 260.dp),
+                    color = TextMain,
+                )
+                TextButton(onClick = onClearAttachment) { Text("✕", color = TextSoft) }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            IconButton(
+                onClick = { picker.launch(arrayOf("audio/*", "video/*")) },
+                enabled = !generating,
+            ) { Text("+", fontSize = 30.sp, color = Accent) }
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(if (ready) "Message LoFi-4A" else "Load the model to chat", color = TextSoft) },
+                enabled = ready && !generating,
+                maxLines = 4,
+            )
+            if (generating) {
+                Button(onClick = onStop) { Text("Stop") }
+            } else {
+                Button(onClick = { onSend(text); text = "" }, enabled = ready && text.isNotBlank()) { Text("Send") }
+            }
         }
     }
 }
